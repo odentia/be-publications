@@ -2,7 +2,7 @@ import httpx
 import logging
 from typing import Optional, Dict, Any
 from ..core.config import settings
-from ..core.exceptions import PostServiceException
+from ..core.exeptions import PostServiceException
 
 logger = logging.getLogger(__name__)
 

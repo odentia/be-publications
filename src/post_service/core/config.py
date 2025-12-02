@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     """Application settings"""
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/posts_db"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:1123@localhost:5432/publications"
 
     # RabbitMQ
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"

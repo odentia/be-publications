@@ -17,7 +17,7 @@ class EventPublisher:
         try:
             self.connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
             self.channel = await self.connection.channel()
-/
+
             self.exchange = await self.channel.declare_exchange(
                 "blog_events",
                 aio_pika.ExchangeType.TOPIC,

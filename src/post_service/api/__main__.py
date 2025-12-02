@@ -1,6 +1,6 @@
 import uvicorn
 import logging
-from .app import app
+from app import app
 from ..core.config import settings
 
 logger = logging.getLogger(__name__)

@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from .config import settings
@@ -37,7 +38,7 @@ async def get_db() -> AsyncSession:
 async def init_db():
     try:
         async with engine.begin() as conn:
-            await conn.run_sync(lambda sync_conn: sync_conn.execute("SELECT 1"))
+            await conn.run_sync(lambda sync_conn: sync_conn.execute(text("SELECT 1")))
         logger.info("Database connection established successfully")
     except Exception as e:
         logger.error(f"Database connection failed: {e}")

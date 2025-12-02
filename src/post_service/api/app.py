@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from .lifespan import lifespan
-from v1.post_router import router
+from .v1.post_router import router
 from ..core.config import settings
 from ..core.logging import init_logging
 
@@ -16,8 +16,6 @@ def create_app() -> FastAPI:
         description="Microservice for managing blog posts",
         version="1.0.0",
         lifespan=lifespan,
-        docs_url="/docs" if settings.DEBUG else None,
-        redoc_url="/redoc" if settings.DEBUG else None,
     )
 
     app.add_middleware(

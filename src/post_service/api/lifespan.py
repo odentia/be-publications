@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
         logger.info("Database initialized successfully")
 
         # Initialize event publisher
-        publisher = EventPublisher()
+        """publisher = EventPublisher()
         await publisher.connect()
         app.state.event_publisher = publisher
         logger.info("Event publisher initialized successfully")
@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
         # Initialize event consumer (if needed)
         # consumer = EventConsumer()
         # await consumer.start()  # Run in background task if needed
-
+"""
         logger.info("Posts Service started successfully")
 
     except Exception as e:

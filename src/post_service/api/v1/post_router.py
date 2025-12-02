@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
 
+# Исправьте импорт - возможно нужно абсолютный путь
+from ...core.dependencies import get_post_service  # Попробуйте так
+
 from ...dtos.http import (
     PostCreateRequest,
     PostResponse,
@@ -17,7 +20,7 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 async def create_post(
     post_data: PostCreateRequest,
     current_user: dict = Depends(AuthClient.get_user_profile),
-    post_service: PostService = Depends()
+    post_service: PostService = Depends(get_post_service)  # ✅
 ):
     return await post_service.create_post(
         title=post_data.title,
@@ -32,7 +35,7 @@ async def create_post(
 async def get_post(
     post_id: str,
     increment_views: bool = Query(True),
-    post_service: PostService = Depends()
+    post_service: PostService = Depends(get_post_service)  # ✅ Исправлено: было Depends()
 ):
     if increment_views:
         post = await post_service.view_post(post_id)
@@ -49,7 +52,7 @@ async def get_post(
 async def publish_post(
     post_id: str,
     current_user: dict = Depends(AuthClient.get_user_profile),
-    post_service: PostService = Depends()
+    post_service: PostService = Depends(get_post_service)  # ✅ Исправлено: было Depends()
 ):
     post = await post_service.publish_post(post_id, current_user["user_id"])
     if not post:
@@ -63,7 +66,7 @@ async def list_posts(
     limit: int = Query(100, ge=1, le=1000),
     author_id: Optional[str] = None,
     tags: Optional[List[str]] = Query(None),
-    post_service: PostService = Depends()
+    post_service: PostService = Depends(get_post_service)  # ✅ Исправлено: было Depends()
 ):
     if author_id:
         posts = await post_service.post_repo.find_by_author(author_id, skip, limit)
@@ -83,7 +86,7 @@ async def search_posts(
     q: str = Query(..., min_length=1),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    post_service: PostService = Depends()
+    post_service: PostService = Depends(get_post_service)  # ✅ Исправлено: было Depends()
 ):
     posts = await post_service.post_repo.search(q, skip, limit)
 
