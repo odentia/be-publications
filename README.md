@@ -18,7 +18,7 @@
 - FastAPI, Uvicorn
 - SQLAlchemy (async) + PostgreSQL
 - JWT для авторизации
-- RabbitMQ для событий (опционально)
+- RabbitMQ для событий
 
 ## Запуск
 
