@@ -1,0 +1,28 @@
+# be-publications/docker-compose.yml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: publications
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/publications
+      DEBUG: "true"
+    depends_on:
+      - postgres
+    volumes:
+      - ./src:/app/src  # монтируем код для hot reload
+
+volumes:
+  postgres_data:

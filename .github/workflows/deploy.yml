@@ -1,0 +1,33 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Docker Build & Publish"]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+    - name: Deploy to server
+      env:
+        SSH_KEY: ${{ secrets.SSH_KEY }}
+        HOST: ${{ secrets.HOST }}
+        USER: ${{ secrets.USER }}
+      run: |
+        echo "$SSH_KEY" > key.pem
+        chmod 600 key.pem
+        
+        ssh -i key.pem $USER@$HOST "
+          docker pull ${{ secrets.DOCKER_USERNAME }}/posts-service:latest
+          docker stop posts-service || true
+          docker rm posts-service || true
+          docker run -d \
+            --name posts-service \
+            -p 8000:8000 \
+            -e DATABASE_URL='${{ secrets.DB_URL }}' \
+            ${{ secrets.DOCKER_USERNAME }}/posts-service:latest
+        "
