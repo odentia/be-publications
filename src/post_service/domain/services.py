@@ -6,7 +6,7 @@ from ..mq.publisher import EventPublisher
 
 
 class PostService:
-    def __init__(self, post_repo: PostRepository, event_publisher: EventPublisher):
+    def __init__(self, post_repo: PostRepository, event_publisher: Optional[EventPublisher] = None):
         self.post_repo = post_repo
         self.event_publisher = event_publisher
 
@@ -23,14 +23,15 @@ class PostService:
         saved_post = await self.post_repo.save(post)
 
         # Публикуем событие создания поста
-        await self.event_publisher.publish(
-            PostCreatedEvent(
-                post_id=saved_post.id,
-                author_id=author_id,
-                author_username=author_username,
-                title=title
+        if self.event_publisher:
+            await self.event_publisher.publish(
+                PostCreatedEvent(
+                    post_id=saved_post.id,
+                    author_id=author_id,
+                    author_username=author_username,
+                    title=title
+                )
             )
-        )
 
         return saved_post
 
@@ -44,15 +45,16 @@ class PostService:
         updated_post = await self.post_repo.save(post)
 
         # Публикуем событие публикации поста
-        await self.event_publisher.publish(
-            PostPublishedEvent(
-                post_id=post_id,
-                author_id=author_id,
-                author_username=post.author_username,
-                title=post.title,
-                published_at=updated_post.published_at.isoformat()
+        if self.event_publisher:
+            await self.event_publisher.publish(
+                PostPublishedEvent(
+                    post_id=post_id,
+                    author_id=author_id,
+                    author_username=post.author_username,
+                    title=post.title,
+                    published_at=updated_post.published_at.isoformat()
+                )
             )
-        )
 
         return updated_post
 
@@ -65,12 +67,13 @@ class PostService:
         await self.post_repo.increment_view_count(post_id)
 
         # Публикуем событие просмотра поста
-        await self.event_publisher.publish(
-            PostViewedEvent(
-                post_id=post_id,
-                author_id=post.author_id
+        if self.event_publisher:
+            await self.event_publisher.publish(
+                PostViewedEvent(
+                    post_id=post_id,
+                    author_id=post.author_id
+                )
             )
-        )
 
         return post
 

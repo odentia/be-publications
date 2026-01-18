@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   workflow_run:
-    workflows: ["Docker Build & Publish"]
+    workflows: ["Build and Push Docker images to GHCR"]
     branches: [main]
     types: [completed]
 
@@ -22,12 +22,13 @@ jobs:
         chmod 600 key.pem
         
         ssh -i key.pem $USER@$HOST "
-          docker pull ${{ secrets.DOCKER_USERNAME }}/posts-service:latest
+          docker pull ghcr.io/${{ github.repository_owner }}/posts-service:latest
           docker stop posts-service || true
           docker rm posts-service || true
           docker run -d \
             --name posts-service \
             -p 8000:8000 \
             -e DATABASE_URL='${{ secrets.DB_URL }}' \
-            ${{ secrets.DOCKER_USERNAME }}/posts-service:latest
+            -e RABBITMQ_URL='${{ secrets.RABBITMQ_URL }}' \
+            ghcr.io/${{ github.repository_owner }}/posts-service:latest
         "

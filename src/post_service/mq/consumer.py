@@ -53,6 +53,10 @@ class EventConsumer:
         await queue.bind(exchange, "posts.*")
         await queue.bind(exchange, "likes.updated")
         await queue.bind(exchange, "comments.updated")
+        
+        # Также биндим на возможные варианты от других сервисов
+        await queue.bind(exchange, "likes.post_likes_updated")
+        await queue.bind(exchange, "comments.post_comments_updated")
 
         logger.info(f"Started consuming from queue: {queue_name}")
 
@@ -61,13 +65,23 @@ class EventConsumer:
                 async with message.process():
                     try:
                         event_data = json.loads(message.body.decode())
-                        event_type = event_data.get("event_type")
-
-                        if event_type in self.handlers:
-                            await self.handlers[event_type](event_data)
-                            logger.debug(f"Event processed: {event_type}")
+                        routing_key = message.routing_key or ""
+                        
+                        # Определяем тип события по routing_key или по event_type в теле сообщения
+                        if routing_key.startswith("posts."):
+                            event_type = event_data.get("event_type")
+                        elif routing_key == "likes.updated":
+                            event_type = "post_likes_updated"
+                        elif routing_key == "comments.updated":
+                            event_type = "post_comments_updated"
                         else:
-                            logger.warning(f"No handler for event type: {event_type}")
+                            event_type = event_data.get("event_type")
+
+                        if event_type and event_type in self.handlers:
+                            await self.handlers[event_type](event_data)
+                            logger.debug(f"Event processed: {event_type} (routing_key: {routing_key})")
+                        else:
+                            logger.warning(f"No handler for event type: {event_type} (routing_key: {routing_key})")
 
                     except Exception as e:
                         logger.error(f"Error processing message: {e}")

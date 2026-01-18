@@ -11,6 +11,34 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ - только для локальной разработки
+  # В production RabbitMQ должен быть отдельным сервисом, к которому
+  # подключаются все микросервисы (устанавливается отдельно или через общий docker-compose)
+  # 
+  # ВАЖНО: В production НЕ запускайте RabbitMQ в каждом микросервисе!
+  # Используйте один общий RabbitMQ сервер для всей системы
+  rabbitmq:
+    image: rabbitmq:3-management
+    # Порты для локальной разработки (Management UI: http://localhost:15672)
+    ports:
+      - "5672:5672"      # AMQP порт
+      - "15672:15672"    # Management UI порт
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app:
     build: .
@@ -18,11 +46,14 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/publications
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       DEBUG: "true"
     depends_on:
       - postgres
+      - rabbitmq
     volumes:
       - ./src:/app/src  # монтируем код для hot reload
 
 volumes:
   postgres_data:
+  rabbitmq_data:
