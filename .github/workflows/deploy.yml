@@ -22,18 +22,26 @@ jobs:
       run: |
         echo "$SSH_KEY" > key.pem
         chmod 600 key.pem
-        
-        # Собираем RABBITMQ_URL из отдельных секретов
         RABBITMQ_URL="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@localhost:5672/"
         
-        # Отключаем проверку host key для автоматического подключения
         ssh -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $USER@$HOST "
+          if ! docker ps -a --format '{{.Names}}' | grep -q '^postgres-publications\$'; then
+            docker run -d --name postgres-publications --restart always -p 5433:5432 \
+              -e POSTGRES_DB='${{ secrets.POSTGRES_DB }}' \
+              -e POSTGRES_USER='${{ secrets.POSTGRES_USER }}' \
+              -e POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
+              -v postgres_publications_data:/var/lib/postgresql/data \
+              postgres:15
+          else
+            docker start postgres-publications || true
+          fi
+          
+          sleep 5
+          
           docker pull ghcr.io/${{ github.repository }}/latest
           docker stop posts-service || true
           docker rm posts-service || true
-          docker run -d \
-            --name posts-service \
-            -p 8000:8000 \
+          docker run -d --name posts-service --network host \
             -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
             -e RABBITMQ_URL='$RABBITMQ_URL' \
             ghcr.io/${{ github.repository }}/latest
