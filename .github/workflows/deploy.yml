@@ -45,7 +45,11 @@ jobs:
           docker stop posts-service || true
           docker rm posts-service || true
           
-          docker run -d --name posts-service --restart always --network publications-network -p 8000:8000 \
+          docker run -d \
+            --name posts-service \
+            --restart always \
+            --network publications-network \
+            -p 8000:8000 \
             -e DATABASE_URL='postgresql+asyncpg://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres-publications:5432/${{ secrets.POSTGRES_DB }}' \
             -e RABBITMQ_URL='$RABBITMQ_URL' \
             ghcr.io/${{ github.repository }}/latest
