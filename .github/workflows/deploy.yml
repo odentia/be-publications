@@ -24,7 +24,7 @@ jobs:
             mkdir -p ~/posts-service
             cd ~/posts-service
             
-            RABBITMQ_URL="amqp://${{ secrets.RABBITMQ_USER }}:${{ secrets.RABBITMQ_PASSWORD }}@localhost:5672/"
+            RABBITMQ_URL="amqp://${{ secrets.RABBITMQ_USER }}:${{ secrets.RABBITMQ_PASSWORD }}@host.docker.internal:5672/"
             
             cat > docker-compose.yml << EOF
             services:
@@ -60,6 +60,8 @@ jobs:
                 environment:
                   - DATABASE_URL=${{ secrets.DATABASE_URL }}
                   - RABBITMQ_URL=${RABBITMQ_URL}
+                extra_hosts:
+                  - "host.docker.internal:host-gateway"
                 networks:
                   - publications-network
             
