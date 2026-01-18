@@ -17,9 +17,14 @@ jobs:
         SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         HOST: ${{ secrets.DEPLOY_HOST }}
         USER: ${{ secrets.DEPLOY_USER }}
+        RABBITMQ_USER: ${{ secrets.RABBITMQ_USER }}
+        RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
       run: |
         echo "$SSH_KEY" > key.pem
         chmod 600 key.pem
+        
+        # Собираем RABBITMQ_URL из отдельных секретов
+        RABBITMQ_URL="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@localhost:5672/"
         
         # Отключаем проверку host key для автоматического подключения
         ssh -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $USER@$HOST "
@@ -30,6 +35,6 @@ jobs:
             --name posts-service \
             -p 8000:8000 \
             -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
-            -e RABBITMQ_URL='${{ secrets.RABBITMQ_URL }}' \
+            -e RABBITMQ_URL='$RABBITMQ_URL' \
             ghcr.io/${{ github.repository }}/latest
         "
