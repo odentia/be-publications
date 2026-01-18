@@ -25,14 +25,17 @@ jobs:
         RABBITMQ_URL="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@localhost:5672/"
         
         ssh -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $USER@$HOST "
+          docker network create publications-network || true
+          
           if ! docker ps -a --format '{{.Names}}' | grep -q '^postgres-publications\$'; then
-            docker run -d --name postgres-publications --restart always -p 5433:5432 \
+            docker run -d --name postgres-publications --restart always --network publications-network -p 5433:5432 \
               -e POSTGRES_DB='${{ secrets.POSTGRES_DB }}' \
               -e POSTGRES_USER='${{ secrets.POSTGRES_USER }}' \
               -e POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
               -v postgres_publications_data:/var/lib/postgresql/data \
               postgres:15
           else
+            docker network connect publications-network postgres-publications 2>/dev/null || true
             docker start postgres-publications || true
           fi
           
@@ -41,8 +44,9 @@ jobs:
           docker pull ghcr.io/${{ github.repository }}/latest
           docker stop posts-service || true
           docker rm posts-service || true
-          docker run -d --name posts-service --restart always --network host \
-            -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
+          
+          docker run -d --name posts-service --restart always --network publications-network -p 8000:8000 \
+            -e DATABASE_URL='postgresql+asyncpg://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres-publications:5432/${{ secrets.POSTGRES_DB }}' \
             -e RABBITMQ_URL='$RABBITMQ_URL' \
             ghcr.io/${{ github.repository }}/latest
         "
