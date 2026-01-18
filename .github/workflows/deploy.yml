@@ -24,7 +24,20 @@ jobs:
             mkdir -p ~/posts-service
             cd ~/posts-service
             
-            RABBITMQ_URL="amqp://${{ secrets.RABBITMQ_USER }}:${{ secrets.RABBITMQ_PASSWORD }}@host.docker.internal:5672/"
+            # Находим контейнер RabbitMQ и его сеть
+            RABBITMQ_CONTAINER=$(docker ps --format '{{.Names}}' | grep -i rabbitmq | head -n1 || echo "")
+            if [ -z "$RABBITMQ_CONTAINER" ]; then
+              echo "RabbitMQ container not found, using host IP"
+              RABBITMQ_HOST="172.17.0.1"
+              RABBITMQ_NETWORK=""
+            else
+              echo "Found RabbitMQ container: $RABBITMQ_CONTAINER"
+              # Получаем сеть RabbitMQ контейнера
+              RABBITMQ_NETWORK=$(docker inspect $RABBITMQ_CONTAINER --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' | head -n1 || echo "")
+              RABBITMQ_HOST="$RABBITMQ_CONTAINER"
+            fi
+            
+            RABBITMQ_URL="amqp://${{ secrets.RABBITMQ_USER }}:${{ secrets.RABBITMQ_PASSWORD }}@${RABBITMQ_HOST}:5672/"
             
             cat > docker-compose.yml << EOF
             services:
@@ -40,6 +53,15 @@ jobs:
                   - postgres_data:/var/lib/postgresql/data
                 networks:
                   - publications-network
+            EOF
+            
+            if [ -n "$RABBITMQ_NETWORK" ] && [ "$RABBITMQ_NETWORK" != "publications-network" ]; then
+              cat >> docker-compose.yml << EOF
+                  - ${RABBITMQ_NETWORK}
+            EOF
+            fi
+            
+            cat >> docker-compose.yml << EOF
                 ports:
                   - "5433:5432"
                 healthcheck:
@@ -60,14 +82,31 @@ jobs:
                 environment:
                   - DATABASE_URL=${{ secrets.DATABASE_URL }}
                   - RABBITMQ_URL=${RABBITMQ_URL}
-                extra_hosts:
-                  - "host.docker.internal:host-gateway"
                 networks:
                   - publications-network
+            EOF
+            
+            if [ -n "$RABBITMQ_NETWORK" ] && [ "$RABBITMQ_NETWORK" != "publications-network" ]; then
+              cat >> docker-compose.yml << EOF
+                  - ${RABBITMQ_NETWORK}
+            EOF
+            fi
+            
+            cat >> docker-compose.yml << EOF
             
             networks:
               publications-network:
                 driver: bridge
+            EOF
+            
+            if [ -n "$RABBITMQ_NETWORK" ] && [ "$RABBITMQ_NETWORK" != "publications-network" ]; then
+              cat >> docker-compose.yml << EOF
+              ${RABBITMQ_NETWORK}:
+                external: true
+            EOF
+            fi
+            
+            cat >> docker-compose.yml << EOF
             
             volumes:
               postgres_data:
