@@ -68,7 +68,7 @@ jobs:
             
             cat >> docker-compose.yml << EOF
                 ports:
-                  - "5433:5432"
+                  - "5434:5432"
                 healthcheck:
                   test: ["CMD-SHELL", "pg_isready -U ${{ secrets.POSTGRES_USER || 'postgres' }}"]
                   interval: 10s
@@ -85,7 +85,7 @@ jobs:
                 ports:
                   - "8000:8000"
                 environment:
-                  - DATABASE_URL=${{ secrets.DATABASE_URL }}
+                  - DATABASE_URL=postgresql+asyncpg://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres-publications:5432/${{ secrets.POSTGRES_DB }}
                   - RABBITMQ_URL=${RABBITMQ_URL}
                 networks:
                   - publications-network
