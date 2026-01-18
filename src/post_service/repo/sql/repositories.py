@@ -40,7 +40,7 @@ class SQLAlchemyPostRepository(PostRepository):
         try:
             result = await self.session.execute(
                 select(Post)
-                .where(Post.user_id == user_id)
+                .where(Post.author_id == user_id)  # Используем author_id вместо user_id
                 .order_by(Post.created_at.desc())
                 .offset(skip)
                 .limit(limit)
@@ -49,6 +49,10 @@ class SQLAlchemyPostRepository(PostRepository):
         except Exception as e:
             logger.error(f"Failed to find posts by user: {e}")
             raise DatabaseError(f"Failed to find posts: {str(e)}")
+    
+    async def find_by_author(self, author_id: str, skip: int = 0, limit: int = 100) -> List[Post]:
+        """Найти посты по автору (алиас для find_by_user)"""
+        return await self.find_by_user(author_id, skip, limit)
 
     async def find_published(self, skip: int = 0, limit: int = 100,
                              tags: List[str] = None) -> List[Post]:
@@ -92,10 +96,15 @@ class SQLAlchemyPostRepository(PostRepository):
 
     async def search(self, query: str, skip: int = 0, limit: int = 100) -> List[Post]:
         try:
-            search_filter = or_(
-                Post.title.ilike(f"%{query}%"),
-                Post.content.ilike(f"%{query}%")
-            )
+            # Поиск по title и description (page - JSON, поиск по нему сложнее, можно добавить позже)
+            filters = [Post.title.ilike(f"%{query}%")]
+            
+            # Добавляем поиск по description если он есть
+            # В PostgreSQL можно использовать cast для поиска по тексту в JSONB
+            from sqlalchemy import cast, String
+            filters.append(cast(Post.description, String).ilike(f"%{query}%"))
+            
+            search_filter = or_(*filters)
 
             result = await self.session.execute(
                 select(Post)

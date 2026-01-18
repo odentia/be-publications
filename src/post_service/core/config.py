@@ -7,7 +7,8 @@ class Settings(BaseSettings):
     """Application settings"""
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:1123@localhost:5432/publications"
+    # Для локальной разработки используем порт 5433 если 5432 занят
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:1123@localhost:5433/publications"
 
     # RabbitMQ
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"

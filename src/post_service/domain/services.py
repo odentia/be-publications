@@ -10,13 +10,15 @@ class PostService:
         self.post_repo = post_repo
         self.event_publisher = event_publisher
 
-    async def create_post(self, title: str, content: str, author_id: str,
-                          author_username: str, tags: List[str] = None) -> Post:
+    async def create_post(self, title: str, description: Optional[str], page: dict,
+                          author_id: str, author_username: Optional[str] = None,
+                          game: Optional[str] = None, tags: List[str] = None) -> Post:
         post = Post(
             title=title,
-            content=content,
+            description=description,
+            page=page,
             author_id=author_id,
-            author_username=author_username,
+            game=game,
             tags=tags or []
         )
 
@@ -35,7 +37,7 @@ class PostService:
 
         return saved_post
 
-    async def publish_post(self, post_id: str, author_id: str) -> Optional[Post]:
+    async def publish_post(self, post_id: str, author_id: str, author_username: Optional[str] = None) -> Optional[Post]:
         post = await self.post_repo.find_by_id(post_id)
 
         if not post or post.author_id != author_id:
@@ -50,7 +52,7 @@ class PostService:
                 PostPublishedEvent(
                     post_id=post_id,
                     author_id=author_id,
-                    author_username=post.author_username,
+                    author_username=author_username or "unknown",
                     title=post.title,
                     published_at=updated_post.published_at.isoformat()
                 )

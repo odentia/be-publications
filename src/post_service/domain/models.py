@@ -16,8 +16,10 @@ class Post(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     title = Column(String(255), nullable=False)
-    content = Column(Text, nullable=False)
-    user_id = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)  # Краткое описание
+    page = Column(JSON, nullable=False)  # JSON структура страницы (было content)
+    author_id = Column(String, nullable=False, index=True)  # Переименовано из user_id
+    game = Column(String(255), nullable=True, index=True)  # Связь с игрой (опционально)
     status = Column(String(20), default="draft")  # draft, published, archived
     tags = Column(JSON, default=list)
     view_count = Column(Integer, default=0)
@@ -27,6 +29,11 @@ class Post(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     published_at = Column(DateTime(timezone=True), nullable=True)
     is_deleted = Column(Boolean, default=False)
+    
+    # Для обратной совместимости (если где-то используется user_id)
+    @property
+    def user_id(self):
+        return self.author_id
 
     def publish(self):
         self.status = "published"

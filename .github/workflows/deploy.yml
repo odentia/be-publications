@@ -14,9 +14,9 @@ jobs:
     steps:
     - name: Deploy to server
       env:
-        SSH_KEY: ${{ secrets.SSH_KEY }}
-        HOST: ${{ secrets.HOST }}
-        USER: ${{ secrets.USER }}
+        SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        HOST: ${{ secrets.DEPLOY_HOST }}
+        USER: ${{ secrets.DEPLOY_USER }}
       run: |
         echo "$SSH_KEY" > key.pem
         chmod 600 key.pem
@@ -28,7 +28,7 @@ jobs:
           docker run -d \
             --name posts-service \
             -p 8000:8000 \
-            -e DATABASE_URL='${{ secrets.DB_URL }}' \
+            -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
             -e RABBITMQ_URL='${{ secrets.RABBITMQ_URL }}' \
             ghcr.io/${{ github.repository }}/latest
         "
