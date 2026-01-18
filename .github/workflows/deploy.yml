@@ -1,10 +1,11 @@
 name: Deploy
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: ["Build and Push Docker images to GHCR"]
-    branches: [main]
-    types: [completed]
+    types:
+      - completed
 
 jobs:
   deploy:
@@ -12,45 +13,68 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-    - name: Deploy to server
-      env:
-        SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        HOST: ${{ secrets.DEPLOY_HOST }}
-        USER: ${{ secrets.DEPLOY_USER }}
-        RABBITMQ_USER: ${{ secrets.RABBITMQ_USER }}
-        RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
-      run: |
-        echo "$SSH_KEY" > key.pem
-        chmod 600 key.pem
-        RABBITMQ_URL="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@localhost:5672/"
-        
-        ssh -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $USER@$HOST "
-          docker network create publications-network || true
-          
-          if ! docker ps -a --format '{{.Names}}' | grep -q '^postgres-publications\$'; then
-            docker run -d --name postgres-publications --restart always --network publications-network -p 5433:5432 \
-              -e POSTGRES_DB='${{ secrets.POSTGRES_DB }}' \
-              -e POSTGRES_USER='${{ secrets.POSTGRES_USER }}' \
-              -e POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}' \
-              -v postgres_publications_data:/var/lib/postgresql/data \
-              postgres:15
-          else
-            docker network connect publications-network postgres-publications 2>/dev/null || true
-            docker start postgres-publications || true
-          fi
-          
-          sleep 5
-          
-          docker pull ghcr.io/${{ github.repository }}/latest
-          docker stop posts-service || true
-          docker rm posts-service || true
-          
-          docker run -d \
-            --name posts-service \
-            --restart always \
-            --network publications-network \
-            -p 8000:8000 \
-            -e DATABASE_URL='postgresql+asyncpg://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres-publications:5432/${{ secrets.POSTGRES_DB }}' \
-            -e RABBITMQ_URL='$RABBITMQ_URL' \
-            ghcr.io/${{ github.repository }}/latest
-        "
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            mkdir -p ~/posts-service
+            cd ~/posts-service
+            
+            RABBITMQ_URL="amqp://${{ secrets.RABBITMQ_USER }}:${{ secrets.RABBITMQ_PASSWORD }}@localhost:5672/"
+            
+            cat > docker-compose.yml << EOF
+            services:
+              postgres:
+                image: postgres:15
+                container_name: postgres-publications
+                restart: unless-stopped
+                environment:
+                  POSTGRES_DB: ${{ secrets.POSTGRES_DB || 'publications' }}
+                  POSTGRES_USER: ${{ secrets.POSTGRES_USER || 'postgres' }}
+                  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+                volumes:
+                  - postgres_data:/var/lib/postgresql/data
+                networks:
+                  - publications-network
+                ports:
+                  - "5433:5432"
+                healthcheck:
+                  test: ["CMD-SHELL", "pg_isready -U ${{ secrets.POSTGRES_USER || 'postgres' }}"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 5
+              
+              posts-service:
+                image: ghcr.io/${{ github.repository_owner }}/posts-service:latest
+                container_name: posts-service
+                restart: unless-stopped
+                depends_on:
+                  postgres:
+                    condition: service_healthy
+                ports:
+                  - "8000:8000"
+                environment:
+                  - DATABASE_URL=${{ secrets.DATABASE_URL }}
+                  - RABBITMQ_URL=${RABBITMQ_URL}
+                networks:
+                  - publications-network
+            
+            networks:
+              publications-network:
+                driver: bridge
+            
+            volumes:
+              postgres_data:
+            EOF
+            
+            if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
+              echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            fi
+            
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
