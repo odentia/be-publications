@@ -41,7 +41,7 @@ jobs:
           docker pull ghcr.io/${{ github.repository }}/latest
           docker stop posts-service || true
           docker rm posts-service || true
-          docker run -d --name posts-service --network host \
+          docker run -d --name posts-service --restart always --network host \
             -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
             -e RABBITMQ_URL='$RABBITMQ_URL' \
             ghcr.io/${{ github.repository }}/latest
