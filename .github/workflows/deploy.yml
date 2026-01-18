@@ -24,20 +24,25 @@ jobs:
             mkdir -p ~/posts-service
             cd ~/posts-service
             
-            # Находим контейнер RabbitMQ и его сеть
-            RABBITMQ_CONTAINER=$(docker ps --format '{{.Names}}' | grep -i rabbitmq | head -n1 || echo "")
+            # Находим контейнер RabbitMQ по порту 5672 или имени
+            echo "Searching for RabbitMQ container..."
+            RABBITMQ_CONTAINER=$(docker ps --filter "publish=5672" --format '{{.Names}}' | head -n1 || docker ps --format '{{.Names}}' | grep -i rabbitmq | head -n1 || echo "")
             if [ -z "$RABBITMQ_CONTAINER" ]; then
-              echo "RabbitMQ container not found, using host IP"
-              RABBITMQ_HOST="172.17.0.1"
+              echo "RabbitMQ container not found, using known IP 172.19.0.2"
+              RABBITMQ_HOST="172.19.0.2"
               RABBITMQ_NETWORK=""
             else
               echo "Found RabbitMQ container: $RABBITMQ_CONTAINER"
               # Получаем сеть RabbitMQ контейнера
               RABBITMQ_NETWORK=$(docker inspect $RABBITMQ_CONTAINER --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' | head -n1 || echo "")
+              echo "RabbitMQ network: $RABBITMQ_NETWORK"
+              # Используем имя контейнера (лучше чем IP, так как имя не меняется)
               RABBITMQ_HOST="$RABBITMQ_CONTAINER"
+              echo "Will use container name: $RABBITMQ_HOST"
             fi
             
             RABBITMQ_URL="amqp://${{ secrets.RABBITMQ_USER }}:${{ secrets.RABBITMQ_PASSWORD }}@${RABBITMQ_HOST}:5672/"
+            echo "RABBITMQ_URL will be set to: amqp://${{ secrets.RABBITMQ_USER }}:***@${RABBITMQ_HOST}:5672/"
             
             cat > docker-compose.yml << EOF
             services:
@@ -116,6 +121,13 @@ jobs:
               echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             fi
             
+            echo "Generated docker-compose.yml:"
+            cat docker-compose.yml
+            
             docker compose pull
+            docker compose down || true
             docker compose up -d
             docker image prune -f
+            
+            echo "Checking posts-service environment variables:"
+            docker exec posts-service env | grep RABBITMQ_URL || echo "RABBITMQ_URL not found in environment"
