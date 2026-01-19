@@ -25,7 +25,16 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # CORS
-    CORS_ORIGINS: list = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CORS_ORIGINS: list = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3010",
+        "http://127.0.0.1:3010",
+        "http://localhost:3020",
+        "http://127.0.0.1:3020",
+        "http://localhost:3030",
+        "http://127.0.0.1:3030",
+    ]
 
     # API
     API_V1_PREFIX: str = "/api/v1"
