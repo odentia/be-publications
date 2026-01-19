@@ -24,6 +24,22 @@ jobs:
             mkdir -p ~/posts-service
             cd ~/posts-service
             
+            # Останавливаем и удаляем старый контейнер postgres-publications если он существует
+            if docker ps -a --format '{{.Names}}' | grep -q "^postgres-publications$"; then
+              echo "Stopping and removing existing postgres-publications container..."
+              docker stop postgres-publications || true
+              docker rm postgres-publications || true
+            fi
+            
+            # Удаляем volumes если они существуют (для применения новых учетных данных)
+            # Docker Compose может называть volume с префиксом проекта или без
+            for VOL_NAME in "posts-service_postgres_data" "postgres_data"; do
+              if docker volume ls --format '{{.Name}}' | grep -q "^${VOL_NAME}$"; then
+                echo "Removing old postgres volume '${VOL_NAME}' to apply new credentials..."
+                docker volume rm "${VOL_NAME}" || true
+              fi
+            done
+            
             # Находим контейнер RabbitMQ по порту 5672 или имени
             echo "Searching for RabbitMQ container..."
             RABBITMQ_CONTAINER=$(docker ps --filter "publish=5672" --format '{{.Names}}' | head -n1 || docker ps --format '{{.Names}}' | grep -i rabbitmq | head -n1 || echo "")
