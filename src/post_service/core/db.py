@@ -35,11 +35,28 @@ async def get_db() -> AsyncSession:
         finally:
             await session.close()
 
+async def run_migrations():
+    """Create database tables from models"""
+    try:
+        from ..domain.models import Base
+        
+        async with engine.begin() as conn:
+            # Create all tables
+            logger.info("Creating database tables...")
+            await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {e}")
+        raise
+
 async def init_db():
     try:
         async with engine.begin() as conn:
             await conn.run_sync(lambda sync_conn: sync_conn.execute(text("SELECT 1")))
         logger.info("Database connection established successfully")
+        
+        # Run migrations after connection is established
+        await run_migrations()
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         raise
