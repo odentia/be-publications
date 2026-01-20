@@ -1,7 +1,7 @@
 import httpx
 import logging
 from typing import Optional, Dict, Any
-from fastapi import HTTPException, status, Header
+from fastapi import HTTPException, status, Cookie
 from ..core.config import settings
 from ..core.exeptions import PostServiceException
 
@@ -17,10 +17,11 @@ class AuthClient:
         """Валидирует токен и возвращает информацию о пользователе"""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
-                headers = {"Authorization": f"Bearer {token}"}
+                # Отправляем токен через cookie
+                cookies = {"access_token": token}
                 response = await client.get(
                     f"{self.base_url}/auth/verify",
-                    headers=headers
+                    cookies=cookies
                 )
 
                 if response.status_code == 200:
@@ -37,10 +38,11 @@ class AuthClient:
         """Получает профиль пользователя по ID"""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             try:
-                headers = {"Authorization": f"Bearer {token}"}
+                # Отправляем токен через cookie
+                cookies = {"access_token": token}
                 response = await client.get(
                     f"{self.base_url}/users/{user_id}/profile",
-                    headers=headers
+                    cookies=cookies
                 )
 
                 if response.status_code == 200:
@@ -58,30 +60,20 @@ auth_client = AuthClient()
 
 
 async def get_user_profile(
-    authorization: Optional[str] = Header(None)
+    access_token: Optional[str] = Cookie(None, alias="access_token")
 ) -> Dict[str, Any]:
     """
     Зависимость FastAPI для получения информации о текущем пользователе
-    из токена в заголовке Authorization
+    из токена в cookie
     """
-    if not authorization:
+    if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header missing"
+            detail="Authentication cookie missing"
         )
-    
-    # Извлекаем токен из заголовка "Bearer <token>"
-    parts = authorization.split(" ")
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format. Expected: Bearer <token>"
-        )
-    
-    token = parts[1]
     
     # Валидируем токен через auth-service
-    user_info = await auth_client.validate_token(token)
+    user_info = await auth_client.validate_token(access_token)
     
     if not user_info:
         raise HTTPException(
