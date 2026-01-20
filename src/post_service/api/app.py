@@ -17,6 +17,9 @@ def create_app() -> FastAPI:
         version="1.0.0",
         lifespan=lifespan,
     )
+    
+    # Сохраняем settings в app.state для доступа через зависимости
+    app.state.settings = settings
 
     app.add_middleware(
         CORSMiddleware,

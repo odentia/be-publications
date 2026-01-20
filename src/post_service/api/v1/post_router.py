@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
-# Исправьте импорт - возможно нужно абсолютный путь
-from ...core.dependencies import get_post_service  # Попробуйте так
+from ...core.dependencies import get_post_service, get_user_profile
 
 from ...dtos.http import (
     PostCreateRequest,
@@ -13,7 +12,6 @@ from ...dtos.http import (
 )
 from ...domain.services import PostService
 from ...domain.models import Post as PostModel
-from ...clients.auth_service import get_user_profile
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -52,8 +50,8 @@ def post_to_response(post: PostModel, current_user_info: dict = None) -> PostRes
 @router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(
     post_data: PostCreateRequest,
-    current_user: dict = Depends(get_user_profile),
-    post_service: PostService = Depends(get_post_service)
+    current_user: Annotated[dict, Depends(get_user_profile)],
+    post_service: Annotated[PostService, Depends(get_post_service)]
 ):
     post = await post_service.create_post(
         title=post_data.title,
@@ -89,8 +87,8 @@ async def get_post(
 @router.post("/{post_id}/publish", response_model=PostResponse)
 async def publish_post(
     post_id: str,
-    current_user: dict = Depends(get_user_profile),
-    post_service: PostService = Depends(get_post_service)
+    current_user: Annotated[dict, Depends(get_user_profile)],
+    post_service: Annotated[PostService, Depends(get_post_service)]
 ):
     post = await post_service.publish_post(
         post_id, 

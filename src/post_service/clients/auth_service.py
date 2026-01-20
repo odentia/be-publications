@@ -1,9 +1,6 @@
 import httpx
 import logging
 from typing import Optional, Dict, Any
-from fastapi import HTTPException, status, Cookie
-from ..core.config import settings
-from ..core.exeptions import PostServiceException
 
 logger = logging.getLogger(__name__)
 
@@ -57,35 +54,3 @@ class AuthClient:
 
 
 auth_client = AuthClient()
-
-
-async def get_user_profile(
-    access_token: Optional[str] = Cookie(None, alias="access_token")
-) -> Dict[str, Any]:
-    """
-    Зависимость FastAPI для получения информации о текущем пользователе
-    из токена в cookie
-    """
-    if not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication cookie missing"
-        )
-    
-    # Валидируем токен через auth-service
-    user_info = await auth_client.validate_token(access_token)
-    
-    if not user_info:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-    
-    # Возвращаем информацию о пользователе
-    # Предполагаем, что validate_token возвращает объект с user_id и username
-    return {
-        "user_id": user_info.get("user_id") or user_info.get("id") or user_info.get("sub"),
-        "username": user_info.get("username"),
-        "email": user_info.get("email"),
-        **user_info  # Включаем все остальные поля
-    }
